@@ -1,0 +1,29 @@
+# Quick test Docker image for GFX906
+FROM rocm/dev-ubuntu-22.04:6.2
+
+# Set GFX906 environment
+ENV AMDGPU_TARGETS=gfx906 \
+    HSA_OVERRIDE_GFX_VERSION=9.0.6 \
+    ROCM_PATH=/opt/rocm \
+    PATH=${ROCM_PATH}/bin:$PATH \
+    LD_LIBRARY_PATH=${ROCM_PATH}/lib:${ROCM_PATH}/lib64:$LD_LIBRARY_PATH
+
+# Install minimal dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /workspace
+
+# Copy the project
+COPY . /workspace/llama.cpp-gfx906/
+
+# Build the project
+WORKDIR /workspace/llama.cpp-gfx906
+RUN cmake -B build -DGGML_HIP=ON -DAMDGPU_TARGETS=gfx906 && \
+    cmake --build build --config Release -j$(nproc)
+
+CMD ["/bin/bash"]

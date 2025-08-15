@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  gfx906-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.gfx906
+      target: development
+    image: llama-gfx906:dev
+    container_name: llama-gfx906-dev
+    hostname: gfx906-dev
+    
+    # GPU configuration
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    
+    group_add:
+      - video
+      - render
+    
+    security_opt:
+      - seccomp:unconfined
+    
+    ipc: host
+    network_mode: host
+    shm_size: 16gb
+    
+    volumes:
+      - ./:/workspace/llama.cpp-gfx906:rw
+      - models:/workspace/models:rw
+      - benchmarks:/workspace/benchmarks:rw
+      - ccache:/workspace/.ccache:rw
+    
+    environment:
+      - HSA_OVERRIDE_GFX_VERSION=9.0.6
+      - ROCR_VISIBLE_DEVICES=0
+      - HIP_VISIBLE_DEVICES=0
+      - HSA_ENABLE_LARGE_BAR=1
+      - HSA_FORCE_FINE_GRAIN_PCIE=1
+    
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
+  gfx906-runtime:
+    build:
+      context: .
+      dockerfile: Dockerfile.gfx906
+      target: runtime
+    image: llama-gfx906:runtime
+    
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    
+    group_add:
+      - video
+      - render
+    
+    security_opt:
+      - seccomp:unconfined
+    
+    volumes:
+      - models:/models:ro
+    
+    environment:
+      - HSA_OVERRIDE_GFX_VERSION=9.0.6
+      - ROCR_VISIBLE_DEVICES=0
+
+volumes:
+  models:
+    driver: local
+  benchmarks:
+    driver: local
+  ccache:
+    driver: local

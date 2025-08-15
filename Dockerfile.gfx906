@@ -1,0 +1,94 @@
+# Optimized Docker image for GFX906 (AMD Instinct MI50) development
+ARG ROCM_VERSION=6.2
+ARG UBUNTU_VERSION=22.04
+
+# Development base with all ROCm tools
+FROM rocm/dev-ubuntu-${UBUNTU_VERSION}:${ROCM_VERSION} AS dev-base
+
+# Set GFX906-specific environment
+ENV AMDGPU_TARGETS=gfx906 \
+    HSA_OVERRIDE_GFX_VERSION=9.0.6 \
+    ROCM_PATH=/opt/rocm \
+    HIP_PLATFORM=amd \
+    PATH=${ROCM_PATH}/bin:${ROCM_PATH}/llvm/bin:$PATH \
+    LD_LIBRARY_PATH=${ROCM_PATH}/lib:${ROCM_PATH}/lib64:$LD_LIBRARY_PATH \
+    HIPCC_COMPILE_FLAGS="-O3 -ffast-math -march=native" \
+    HIPCC_LINK_FLAGS="-O3" \
+    HSA_ENABLE_SDMA=0 \
+    GPU_MAX_HW_QUEUES=8 \
+    GPU_NUM_COMPUTE_RINGS=8 \
+    AMD_LOG_LEVEL=3 \
+    HSA_ENABLE_LARGE_BAR=1
+
+# Install development dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    ninja-build \
+    git \
+    vim \
+    gdb \
+    ccache \
+    python3-pip \
+    python3-dev \
+    rocm-dev \
+    rocm-libs \
+    rocm-utils \
+    roctracer-dev \
+    rocprofiler-dev \
+    && pip3 install --upgrade pip numpy scipy \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up ccache
+ENV CCACHE_DIR=/workspace/.ccache \
+    CCACHE_MAXSIZE=10G \
+    CMAKE_CXX_COMPILER_LAUNCHER=ccache \
+    CMAKE_C_COMPILER_LAUNCHER=ccache
+
+# Create workspace
+WORKDIR /workspace
+RUN mkdir -p /workspace/llama.cpp-gfx906 /workspace/models /workspace/benchmarks
+
+# Development stage with extra tools
+FROM dev-base AS development
+
+RUN apt-get update && apt-get install -y \
+    clang-format \
+    clang-tidy \
+    tmux \
+    htop \
+    && rm -rf /var/lib/apt/lists/*
+
+VOLUME ["/workspace"]
+CMD ["/bin/bash"]
+
+# Builder stage
+FROM dev-base AS builder
+
+COPY . /workspace/llama.cpp-gfx906/
+WORKDIR /workspace/llama.cpp-gfx906
+
+# Initialize ggml submodule (required for build)
+RUN git submodule update --init --recursive || \
+    (echo "Note: Submodule initialization failed (expected in Docker build)" && \
+     echo "Ensure submodules are initialized before building Docker image")
+
+RUN cmake -B build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DGGML_HIP=ON \
+    -DAMDGPU_TARGETS=gfx906 \
+    -G Ninja \
+    && cmake --build build --config Release -j$(nproc)
+
+# Runtime stage
+FROM rocm/runtime-ubuntu-${UBUNTU_VERSION}:${ROCM_VERSION} AS runtime
+
+ENV HSA_OVERRIDE_GFX_VERSION=9.0.6 \
+    LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+
+COPY --from=builder /workspace/llama.cpp-gfx906/build/bin/* /usr/local/bin/
+COPY --from=builder /workspace/llama.cpp-gfx906/build/lib/*.so /usr/local/lib/
+
+WORKDIR /models
+VOLUME ["/models"]
+ENTRYPOINT ["/usr/local/bin/llama-cli"]
