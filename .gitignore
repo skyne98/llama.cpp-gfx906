@@ -149,3 +149,7 @@ poetry.toml
 /run-chat.sh
 
 .specstory
+
+# Model files
+models/
+*.gguf

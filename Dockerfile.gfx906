@@ -1,9 +1,9 @@
 # Optimized Docker image for GFX906 (AMD Instinct MI50) development
-ARG ROCM_VERSION=5.7.3
+ARG ROCM_VERSION=6.2
 ARG UBUNTU_VERSION=22.04
 
 # Development base with all ROCm tools
-FROM rocm/dev-ubuntu-${UBUNTU_VERSION}:${ROCM_VERSION}-complete AS dev-base
+FROM rocm/dev-ubuntu-${UBUNTU_VERSION}:${ROCM_VERSION} AS dev-base
 
 # Set GFX906-specific environment
 ENV AMDGPU_TARGETS=gfx906 \
