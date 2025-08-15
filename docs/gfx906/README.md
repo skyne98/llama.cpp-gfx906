@@ -55,7 +55,7 @@ This directory contains comprehensive documentation and implementation guides fo
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/llama.cpp-gfx906
+git clone https://github.com/skyne98/llama.cpp-gfx906
 cd llama.cpp-gfx906
 
 # Build with GFX906 optimizations
