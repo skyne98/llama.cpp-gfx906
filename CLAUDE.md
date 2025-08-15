@@ -9,6 +9,9 @@ llama.cpp-gfx906 is a high-performance C/C++ implementation for LLM inference wi
 
 ### Standard CPU Build
 ```bash
+# Initialize submodules (required for ggml)
+git submodule update --init --recursive
+
 cmake -B build
 cmake --build build --config Release
 ```
@@ -17,11 +20,21 @@ cmake --build build --config Release
 ```bash
 cmake -B build -DGGML_HIP=ON -DAMDGPU_TARGETS=gfx906
 cmake --build build --config Release
+
+# GFX906-optimized build (when available)
+cmake -B build -DGGML_HIP=ON -DGGML_HIP_GFX906_OPTIMIZED=ON -DAMDGPU_TARGETS=gfx906
+cmake --build build --config Release
+```
+
+### Debug Build
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build
 ```
 
 ## Testing
 
-### Run All Tests
+### Build and Run All Tests
 ```bash
 cmake -B build -DLLAMA_BUILD_TESTS=ON
 cmake --build build --config Release
@@ -41,8 +54,17 @@ ctest -L model    # Model loading
 ./build/bin/test-tokenizer-0 ./models/ggml-vocab-llama-bpe.gguf
 ```
 
-## Code Formatting
-Use clang-format for all C/C++ code. The repository follows 4-space indentation (configured in .ecrc).
+### Running Benchmarks
+```bash
+# Performance benchmark
+./build/bin/llama-bench -m model.gguf
+
+# Perplexity testing
+./build/bin/llama-perplexity -m model.gguf -f file.txt
+
+# Profile with rocprof (AMD GPU)
+rocprof --stats --hip-trace ./build/bin/llama-cli -m model.gguf -p "prompt" -n 100
+```
 
 ## Architecture
 
@@ -50,7 +72,7 @@ Use clang-format for all C/C++ code. The repository follows 4-space indentation 
 1. **GGML Layer** (`ggml/`): Low-level tensor operations and backend implementations
    - `ggml/src/ggml.c`: Core tensor library
    - `ggml/src/ggml-cuda/`: NVIDIA GPU kernels
-   - `ggml/src/ggml-hip/`: AMD GPU kernels
+   - `ggml/src/ggml-hip/`: AMD GPU kernels (GFX906 optimizations)
    - `ggml/src/ggml-backend.c`: Backend abstraction layer
 
 2. **LLaMA Layer** (`src/`): Model implementation and inference engine
@@ -60,9 +82,11 @@ Use clang-format for all C/C++ code. The repository follows 4-space indentation 
    - `src/llama-sampling.*`: Sampling strategies (greedy, top-k, top-p, etc.)
 
 3. **Tools Layer** (`tools/`): User-facing applications
-   - `tools/main/`: CLI tool for model inference
-   - `tools/server/`: HTTP server with OpenAI API compatibility
-   - `tools/quantize/`: Model quantization utilities
+   - `tools/main/`: CLI tool for model inference (`llama-cli`)
+   - `tools/server/`: HTTP server with OpenAI API compatibility (`llama-server`)
+   - `tools/quantize/`: Model quantization utilities (`llama-quantize`)
+   - `tools/perplexity/`: Model quality metrics (`llama-perplexity`)
+   - `tools/llama-bench/`: Performance benchmarking (`llama-bench`)
 
 ### Key Design Patterns
 - **Backend Abstraction**: All compute operations go through ggml-backend interface, allowing seamless switching between CPU/CUDA/HIP/Vulkan
@@ -77,17 +101,24 @@ Use clang-format for all C/C++ code. The repository follows 4-space indentation 
 - New sampling methods belong in `src/llama-sampling.cpp`
 - Backend kernels should be added to respective backend directories under `ggml/src/`
 
+### GFX906 Specific Development
+- GFX906 optimizations are in `docs/gfx906/` documentation
+- Key hardware features: V_DOT4_I32_I8, V_DOT2_F32_F16, 64KB LDS
+- Refer to `docs/gfx906/optimization_plan.md` for optimization strategy
+- Check `docs/gfx906/implementation_guide.md` for kernel implementations
+
 ### Before Committing
 1. Run clang-format on modified files
 2. Build with tests enabled and run ctest
 3. Test with both CPU and GPU builds if modifying backend code
-4. Check performance impact with perplexity tool
+4. Check performance impact with llama-bench and perplexity tools
 
 ### Common Development Tasks
 - **Add new model architecture**: Modify `llm_load_arch()` and `llm_build_*()` functions in `src/llama.cpp`
 - **Implement new operator**: Add to `ggml/src/ggml.c` and implement in relevant backends
 - **Add sampling method**: Extend `src/llama-sampling.cpp` with new sampling strategy
 - **Debug tokenization**: Use `tools/test-tokenizer-*.cpp` utilities
+- **Optimize for GFX906**: Follow patterns in `ggml/src/ggml-hip/` and reference `docs/gfx906/`
 
 ## Important Configuration
 - C++17 required

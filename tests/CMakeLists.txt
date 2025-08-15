@@ -145,6 +145,12 @@ if (NOT WIN32 OR NOT BUILD_SHARED_LIBS)
     llama_build_and_test(test-grammar-integration.cpp)
     llama_build_and_test(test-llama-grammar.cpp)
     llama_build_and_test(test-chat.cpp)
+    
+    # GFX906 backend infrastructure test
+    if (GGML_HIP AND (CMAKE_HIP_ARCHITECTURES MATCHES "gfx906" OR AMDGPU_TARGETS MATCHES "gfx906"))
+        llama_build_and_test(test-gfx906-backend.cpp LABEL "backend")
+    endif()
+    
     # TODO: disabled on loongarch64 because the ggml-ci node lacks Python 3.8
     if (NOT ${CMAKE_SYSTEM_PROCESSOR} MATCHES "loongarch64")
         llama_build_and_test(test-json-schema-to-grammar.cpp   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
