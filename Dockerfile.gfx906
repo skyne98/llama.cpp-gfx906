@@ -68,6 +68,11 @@ FROM dev-base AS builder
 COPY . /workspace/llama.cpp-gfx906/
 WORKDIR /workspace/llama.cpp-gfx906
 
+# Initialize ggml submodule (required for build)
+RUN git submodule update --init --recursive || \
+    (echo "Note: Submodule initialization failed (expected in Docker build)" && \
+     echo "Ensure submodules are initialized before building Docker image")
+
 RUN cmake -B build \
     -DCMAKE_BUILD_TYPE=Release \
     -DGGML_HIP=ON \

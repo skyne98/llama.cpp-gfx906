@@ -37,6 +37,7 @@ Getting started with llama.cpp is straightforward. Here are several ways to inst
 - Run with Docker - see our [Docker documentation](docs/docker.md)
 - Download pre-built binaries from the [releases page](https://github.com/ggml-org/llama.cpp/releases)
 - Build from source by cloning this repository - check out [our build guide](docs/build.md)
+  - **Note:** When building from source, remember to initialize submodules with `git submodule update --init --recursive`
 
 Once installed, you'll need a model to work with. Head to the [Obtaining and quantizing models](#obtaining-and-quantizing-models) section to learn more.
 

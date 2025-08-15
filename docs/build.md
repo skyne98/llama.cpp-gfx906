@@ -9,7 +9,12 @@ The project also includes many example programs and tools using the `llama` libr
 ```bash
 git clone https://github.com/ggml-org/llama.cpp
 cd llama.cpp
+
+# IMPORTANT: Initialize the ggml submodule (required for building)
+git submodule update --init --recursive
 ```
+
+**Note:** The ggml tensor library is included as a submodule and must be initialized before building. If you see build errors about missing ggml files, ensure you've run the submodule command above.
 
 The following sections describe how to build with different backends and options.
 
@@ -261,7 +266,28 @@ This provides GPU acceleration on HIP-supported AMD GPUs.
 Make sure to have ROCm installed.
 You can download it from your Linux distro's package manager or from here: [ROCm Quick Start (Linux)](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/tutorial/quick-start.html#rocm-install-quick).
 
-- Using `CMake` for Linux (assuming a gfx1030-compatible AMD GPU):
+### Building for AMD Instinct MI50 (GFX906)
+
+This repository includes optimizations specifically for AMD Instinct MI50 (gfx906) GPUs. To build with GFX906 support:
+
+```bash
+# IMPORTANT: Ensure ggml submodule is initialized
+git submodule update --init --recursive
+
+# Build with GFX906 optimizations
+cmake -B build -DGGML_HIP=ON -DAMDGPU_TARGETS=gfx906 -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release -j 8
+```
+
+The ggml-gfx906 fork includes hardware-specific optimizations for:
+- V_DOT4_I32_I8 (INT8 operations)
+- V_DOT2_F32_F16 (FP16 operations)
+- Optimized memory access patterns for HBM2
+- Wave-level primitives for 64-thread waves
+
+### Building for other AMD GPUs
+
+- Using `CMake` for Linux (example for gfx1030-compatible AMD GPU):
   ```bash
   HIPCXX="$(hipconfig -l)/clang" HIP_PATH="$(hipconfig -R)" \
       cmake -S . -B build -DGGML_HIP=ON -DAMDGPU_TARGETS=gfx1030 -DCMAKE_BUILD_TYPE=Release \
